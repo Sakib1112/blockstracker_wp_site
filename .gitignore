@@ -1,0 +1,44 @@
+# WordPress files
+wp-config.php
+wp-content/uploads
+wp-content/cache
+wp-content/db.php
+wp-content/upgrade
+
+# Themes
+wp-content/themes/*/readme.txt
+wp-content/themes/*/screenshot.png
+wp-content/themes/*/languages/*.po
+wp-content/themes/*/languages/*.mo
+
+# Plugins
+wp-content/plugins/*/readme.txt
+wp-content/plugins/*/changelog.txt
+
+# Elementor plugin
+wp-content/uploads/elementor
+wp-content/uploads/elementor/css
+wp-content/uploads/elementor/fonts
+
+# OceanWP theme
+wp-content/themes/oceanwp/inc/admin
+wp-content/themes/oceanwp/inc/customizer
+wp-content/themes/oceanwp/inc/woocommerce
+
+# a1wm-backups
+wp-content/ai1wm-backups/
+
+# Database files
+db_data
+
+# Ignore log files
+*.log
+wp-content/debug.log
+
+# Other files
+.svn
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+.env
