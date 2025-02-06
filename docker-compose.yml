@@ -42,3 +42,5 @@ volumes:
 
 networks:
   blocks-tracker:
+    name: blocks-tracker
+    driver: bridge
