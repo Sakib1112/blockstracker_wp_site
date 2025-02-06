@@ -10,6 +10,8 @@ services:
       WORDPRESS_DB_NAME: ${DB_NAME}
     volumes:
       - ./wp-content:/var/www/html/wp-content
+    networks:
+      - blocks-tracker
 
   db:
     image: mariadb:latest
@@ -20,6 +22,8 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
+    networks:
+      - blocks-tracker
   phpmyadmin: 
     image: phpmyadmin:latest 
     ports: 
@@ -29,7 +33,12 @@ services:
       PMA_PORT: 3306 
       PMA_USER: ${DB_USER}
       PMA_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - blocks-tracker
 
 
 volumes:
   db_data:
+
+networks:
+  blocks-tracker:
