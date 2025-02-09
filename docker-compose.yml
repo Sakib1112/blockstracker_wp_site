@@ -1,8 +1,6 @@
 services:
   wordpress:
     image: wordpress:latest
-    ports:
-      - "8000:80"
     environment:
       WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_USER: ${DB_USER}
@@ -22,8 +20,10 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
+
     networks:
       - blocks-tracker
+        
   phpmyadmin: 
     image: phpmyadmin:latest 
     ports: 
