@@ -22,8 +22,11 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
+      - ./backup.sql:/docker-entrypoint-initdb.d/init.sql
+
     networks:
       - blocks-tracker
+        
   phpmyadmin: 
     image: phpmyadmin:latest 
     ports: 
