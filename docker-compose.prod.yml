@@ -1,0 +1,4 @@
+services:
+  db:
+    volumes:
+      - ./backup.sql:/docker-entrypoint-initdb.d/init.sql  # Initial DB dump
