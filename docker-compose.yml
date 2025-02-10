@@ -27,7 +27,7 @@ services:
   phpmyadmin: 
     image: phpmyadmin:latest 
     ports: 
-      - "8080:80" 
+      - "127.0.0.1:8080:80"  # Only accessible from localhost
     environment: 
       PMA_HOST: db 
       PMA_PORT: 3306 
