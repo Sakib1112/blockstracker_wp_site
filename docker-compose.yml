@@ -10,6 +10,7 @@ services:
       - ./wp-content:/var/www/html/wp-content
     networks:
       - blocks-tracker
+    restart: always 
 
   db:
     image: mariadb:latest
@@ -20,22 +21,22 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-
+    restart: always 
     networks:
       - blocks-tracker
-        
-  phpmyadmin: 
-    image: phpmyadmin:latest 
-    ports: 
-      - "127.0.0.1:8080:80"  # Only accessible from localhost
-    environment: 
-      PMA_HOST: db 
-      PMA_PORT: 3306 
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    ports:
+      - "127.0.0.1:8080:80" # Only accessible from localhost
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
       PMA_USER: ${DB_USER}
       PMA_PASSWORD: ${DB_PASSWORD}
     networks:
       - blocks-tracker
-
+    restart: always 
 
 volumes:
   db_data:
