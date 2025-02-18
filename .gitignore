@@ -21,9 +21,9 @@ wp-content/uploads/elementor/css
 wp-content/uploads/elementor/fonts
 
 # OceanWP theme
-wp-content/themes/oceanwp/inc/admin
-wp-content/themes/oceanwp/inc/customizer
-wp-content/themes/oceanwp/inc/woocommerce
+# wp-content/themes/oceanwp/inc/admin
+# wp-content/themes/oceanwp/inc/customizer
+# wp-content/themes/oceanwp/inc/woocommerce
 
 # a1wm-backups
 wp-content/ai1wm-backups/
