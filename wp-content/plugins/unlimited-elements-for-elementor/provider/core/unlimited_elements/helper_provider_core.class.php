@@ -30,7 +30,6 @@ class HelperProviderCoreUC_EL{
 	private static $arrPostsWidgetNames = null;
 	
 	
-	
 	/**
 	 * register post types of elementor library
 	 */
@@ -142,7 +141,7 @@ class HelperProviderCoreUC_EL{
 	 * get general settings values
 	 */
 	public static function getGeneralSettingsValues(){
-
+		
 		$arrValues = self::$operations->getCustomSettingsObjectValues(self::$filepathGeneralSettings, GlobalsUnlimitedElements::GENERAL_SETTINGS_KEY);
 
 		return($arrValues);
@@ -192,7 +191,9 @@ class HelperProviderCoreUC_EL{
 		if(class_exists($className) == true)
 			return(false);
 
+		// class_alias('UniteCreatorElementorWidget', $className);
 		$code = "class {$className} extends UniteCreatorElementorWidget{}";
+		// phpcs:ignore Generic.PHP.ForbiddenFunctions.Found
 		eval($code);
 
 		$widget = new $className();
@@ -991,12 +992,13 @@ class HelperProviderCoreUC_EL{
 
 		if(self::$arrTemplatesCounter[$templateID] >= $numTemplates){
 
-			$text = __("Infinite Template Loop Found: $templateID","unlimited-elements-for-elementor");
+			// translators: %s is templateId
+			$text = sprintf(__("Infinite Template Loop Found with id: %s","unlimited-elements-for-elementor"), $templateID);
 
 			dmp($text);
 
 			if(self::$isInfiniteLoopCode == false){
-				echo "<script>alert('Infinite Template Loop Found with id: $templateID')</script>";
+				s_echo( "<script>alert('" . $text . "')</script>" );
 			}
 
 			self::$isInfiniteLoopCode = true;
@@ -1013,7 +1015,7 @@ class HelperProviderCoreUC_EL{
 		if($mode == "no_ue_widgets")
 			GlobalsProviderUC::$isUnderNoWidgetsToDisplay = false;
 
-		echo $output;
+		s_echo($output);
 	}
 
 
@@ -1238,7 +1240,7 @@ class HelperProviderCoreUC_EL{
 
 				$srcStyle = $objStyle->src;
 				$srcStyle = esc_url($srcStyle);
-
+				// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet
 				$htmlStyle = "<link rel=\"stylesheet\" href=\"{$srcStyle}\">\n";
 
 				$htmlTemplate = $htmlStyle.$htmlTemplate;
@@ -1259,7 +1261,7 @@ class HelperProviderCoreUC_EL{
 
 		$htmlTemplate = do_shortcode($htmlTemplate);
 
-		echo $htmlTemplate;
+		s_echo($htmlTemplate);
 
 		GlobalsUnlimitedElements::$renderingDynamicData = null;
 
@@ -1437,7 +1439,7 @@ class HelperProviderCoreUC_EL{
   		$strOutput .= $strStyle;
   		$strOutput .= "</style>";
 
-  		echo $strOutput;
+		s_echo($strOutput);
 	}
 
 
@@ -1607,8 +1609,8 @@ class HelperProviderCoreUC_EL{
 		self::$urlCore = GlobalsUC::$urlPlugin.$pathRelative;
 				
 		self::$filepathGeneralSettings = self::$pathCore."settings/general_settings_el.xml";
-				
-		//add_action("init", array("HelperProviderCoreUC_EL", "onInitAction"));
+		
+		do_action("ue_after_global_init");
 
 	}
 

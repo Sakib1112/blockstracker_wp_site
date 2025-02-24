@@ -154,13 +154,15 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 			$name = UniteFunctionsUC::getVal($param, "name");
 			if(empty($name))
 				UniteFunctionsUC::throwError("Empty param name found");
-
+			
 			if(isset($arrNames[$name])){
+				
 				$message = "Duplicate $type attribute name found: <b> $name </b>";
 				if(in_array($name, array("link", "image", "thumb", "title", "enable_link")))
 					$message .= ". <br> The <b>$name</b> param is included in the image base params";
-
+	
 				UniteFunctionsUC::throwError($message);
+				
 			}
 
 			//check for elementor taken name
@@ -244,8 +246,7 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 				UniteFunctionsUC::throwError("Widget with ID: {$id} not found");
 			}
 		}
-		
-		
+
 		$this->initByDBRecord($record);
 		
 	}
@@ -594,6 +595,7 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 		$this->isActive = (int)UniteFunctionsUC::getVal($record, "is_active");
 		$this->type = UniteFunctionsUC::getVal($record, "addontype");
 		$this->updateHash = UniteFunctionsUC::getVal($record, "test_slot1");
+
 
 		if(is_string($this->updateHash) == false || strlen($this->updateHash) > 60)
 			$this->updateHash = "";
@@ -1052,7 +1054,7 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 		if(empty($iconPath) === true)
 			return null;
 
-		$iconContents = file_get_contents($iconPath);
+		$iconContents = UniteFunctionsUC::fileGetContents($iconPath);
 
 		return $iconContents;
 	}
@@ -1112,7 +1114,19 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 
 		return ($this->params);
 	}
-
+	
+	
+	/**
+	 * get array of params values with the defaults
+	 */
+	public function getParamsValues(){
+		
+		$arrValues = $this->getProcessedMainParamsValues(UniteCreatorParamsProcessor::PROCESS_TYPE_CONFIG);
+		
+		return ($arrValues);
+	}
+	
+	
 	/**
 	 * get array of default values assoc
 	 */
@@ -1933,6 +1947,19 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 		return(false);
 	}
 
+	
+	/**
+	 * return if the addon is ajax search
+	 */
+	public function isAjaxSearch(){
+		
+		$options = $this->getOptions();
+		$special = UniteFunctionsUC::getVal($options, "special");
+		
+		$isAjaxSearch = ($special === "ajax_search");
+		
+		return $isAjaxSearch;
+	}
 	
 	private function a_______GET__INCLUDES_____(){
 	}
@@ -2889,6 +2916,7 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 		//save hash on test_slot1 for further compare
 		$hash = md5(json_encode($arr));
 
+
 		$arr["test_slot1"] = $hash;
 
 		return ($arr);
@@ -3413,6 +3441,7 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 		$fieldName = "test_slot" . $num;
 		$jsonData = UniteFunctionsUC::getVal($this->data, $fieldName);
 
+
 		if(empty($jsonData))
 			return (null);
 
@@ -3421,7 +3450,7 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 			if(empty($arrData))
 				$arrData = array();
 		}
-		
+
 		return ($arrData);
 	}
 
@@ -3592,6 +3621,7 @@ class UniteCreatorAddonWork extends UniteElementsBaseUC{
 
 		$items = UniteFunctionsUC::getVal($arrData, "items");
 		$fonts = UniteFunctionsUC::getVal($arrData, "fonts");
+
 
 		//if(!empty($config))
 		//$this->setParamsValues($config);

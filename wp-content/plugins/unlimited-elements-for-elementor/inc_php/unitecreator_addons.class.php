@@ -1312,7 +1312,7 @@ class UniteCreatorAddons extends UniteElementsBaseUC{
 
 			$errorMessage = HelperUC::getHtmlErrorMessage($message, GlobalsUC::$SHOW_TRACE_FRONT);
 
-			echo UniteProviderFunctionsUC::escCombinedHtml($errorMessage);
+			s_echo ($errorMessage);
 		}
 
 		exit();
@@ -1368,7 +1368,10 @@ class UniteCreatorAddons extends UniteElementsBaseUC{
 		$isCombine = UniteFunctionsUC::getVal($data, "combine");
 		$isCombine = UniteFunctionsUC::strToBool($isCombine);
 
+
 		$data = $objAddon->getTestData($slotNum);
+
+
 
 		if($isCombine === true){
 			$config = UniteFunctionsUC::getVal($data, "config", array());

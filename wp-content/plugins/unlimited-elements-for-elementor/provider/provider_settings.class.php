@@ -204,7 +204,7 @@ class UniteCreatorSettings extends UniteCreatorSettingsWork{
 		$arrType = array_flip($arrType);
 
 		$this->addSelect($name."_type", $arrType, __("Select Users By", "unlimited-elements-for-elementor"), "custom", $params);
-
+	
 		$arrConditionCustom = array();
 		$arrConditionCustom[$name."_type"] = "custom";
 
@@ -541,7 +541,7 @@ class UniteCreatorSettings extends UniteCreatorSettingsWork{
 		$params = array();
 		$params["origtype"] = UniteCreatorDialogParam::PARAM_DROPDOWN;
 		$params["elementor_condition"] = array($name."_includeby"=>"meta");
-		$params["description"] = __("Get only those terms that has the meta key/value. For IN, NOT IN, BETWEEN, NOT BETWEEN compares, use coma saparated values");
+		$params["description"] = __("Get only those terms that has the meta key/value. For IN, NOT IN, BETWEEN, NOT BETWEEN compares, use coma saparated values","unlimited-elements-for-elementor");
 
 		$arrItems = HelperProviderUC::getArrMetaCompareSelect();
 
@@ -1817,7 +1817,7 @@ class UniteCreatorSettings extends UniteCreatorSettingsWork{
 		$params = array();
 		$params["origtype"] = UniteCreatorDialogParam::PARAM_TEXTFIELD;
 		$params["placeholder"] = __("getMyIDs", "unlimited-elements-for-elementor");
-		$params["description"] = __("Get post id's array from php function. \n For example: function getMyIDs(\$arg){return(array(\"32\",\"58\")). This function MUST begin with 'get'. }");
+		$params["description"] = __("Get post id's array from php function. \n For example: function getMyIDs(\$arg){return(array(\"32\",\"58\")). This function MUST begin with 'get'. }","unlimited-elements-for-elementor");
 		$params["elementor_condition"] = $arrConditionIncludeFunction;
 
 		$this->addTextBox($name . "_includeby_function_name", "", esc_html__("PHP Function Name", "unlimited-elements-for-elementor"), $params);
@@ -1906,7 +1906,7 @@ class UniteCreatorSettings extends UniteCreatorSettingsWork{
 		// --------- terms free selection -------------
 		
 		$params = array();
-		$params["description"] = __("Another way to select terms, not limited by number of terms");
+		$params["description"] = __("Another way to select terms, not limited by number of terms","unlimited-elements-for-elementor");
 		
 		$arrConditionTermsFree = $arrConditionIncludeBy;
 		$arrConditionTermsFree[$name . "_includeby"] = "terms_free_selection";
@@ -2965,6 +2965,9 @@ class UniteCreatorSettings extends UniteCreatorSettingsWork{
 			case UniteCreatorSettings::TYPE_TEXTSHADOW:
 				$this->addTextShadowDialogSettings();
 			break;
+			case UniteCreatorSettings::TYPE_TEXTSTROKE:
+				$this->addTextStrokeDialogSettings();
+			break;
 			case UniteCreatorSettings::TYPE_BOXSHADOW:
 				$this->addBoxShadowDialogSettings();
 			break;
@@ -3211,6 +3214,50 @@ class UniteCreatorSettings extends UniteCreatorSettingsWork{
 
 		$this->addGroupSelector($groupSelectorName, $groupSelector, $groupSelectorValue, $groupSelectorReplace);
 	}
+
+
+	/**
+	 * add text stroke dialog settings
+	 */
+	private function addTextStrokeDialogSettings(){
+
+		$type = UniteCreatorDialogParam::PARAM_TEXTSTROKE;
+		$groupSelectorName = $type . "_group";
+
+		// stroke color
+		$colorName = "color";
+
+		$params = array();
+		$params["group_selector"] = $groupSelectorName;
+
+		$this->addColorPicker($colorName, "", __("Stroke Color", "unlimited-elements-for-elementor"), $params);
+
+		// stroke width
+		$widthName = "width";
+		$widthDefault = 2;
+
+		$params = array();
+		$params["min"] = 0;
+		$params["max"] = 10;
+		$params["step"] = 1;
+		$params["units"] = array("px");
+		$params["group_selector"] = $groupSelectorName;
+
+		$this->addRangeSlider($widthName, $widthDefault, __("Stroke Width", "unlimited-elements-for-elementor"), $params);
+
+		// group selector
+		$groupSelector = self::SELECTOR_PLACEHOLDER;
+		$groupSelectorValue = HelperHtmlUC::getCSSSelectorValueByParam(UniteCreatorDialogParam::PARAM_TEXTSTROKE);
+
+		$groupSelectorReplace = array(
+			"{{WIDTH}}" => $widthName,
+			"{{COLOR}}" => $colorName,
+		);
+
+		$this->addGroupSelector($groupSelectorName, $groupSelector, $groupSelectorValue, $groupSelectorReplace);
+	}
+
+
 
 	/**
 	 * add box shadow dialog settings

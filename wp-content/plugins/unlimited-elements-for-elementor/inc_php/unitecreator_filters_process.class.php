@@ -41,9 +41,12 @@ class UniteCreatorFiltersProcess{
 	private static $isUnderAjaxSearch = false;
 	public static $isUnderAjax = false;
 	private static $showEchoDebug = false;
-
+	
 	private $hasSelectedByRequest = false;
 	private $hasSelectedTerm = false;
+	
+	private static $searchElementID = null;
+	private static $arrContent = null;		//last page content
 	
 	private $titleStart = false;	//title start string
 	
@@ -108,11 +111,10 @@ class UniteCreatorFiltersProcess{
 		}
 		
 		foreach($arrFields as $field){
-						
+			
 			$title = UniteFunctionsUC::getVal($field, "title");
 			$type = UniteFunctionsUC::getVal($field, "type");
 
-			
 			//replace the title with language related title
 			
 			if(!empty($activeLang)){
@@ -589,7 +591,7 @@ class UniteCreatorFiltersProcess{
 
 		$numItems = UniteFunctionsUC::getVal($request, "uccount");
 		$numItems = (int)$numItems;
-
+		
 		if(!empty($numItems))
 			$arrOutput["num_items"] = $numItems;
 
@@ -738,7 +740,7 @@ class UniteCreatorFiltersProcess{
 		if(!empty($titleStart))
 			self::$filters["titlestart"] = $titleStart;
 		
-
+		
 		return(self::$filters);
 	}
 
@@ -789,7 +791,10 @@ class UniteCreatorFiltersProcess{
 	 * get tax query from terms array
 	 */
 	private function getTaxQuery($arrTax){
-
+		
+		if(empty($arrTax))
+			return(array());
+		
 		$arrQuery = array();
 
 		foreach($arrTax as $taxonomy=>$arrTerms){
@@ -857,17 +862,25 @@ class UniteCreatorFiltersProcess{
 	 * set arguments tax query, merge with existing if avaliable
 	 */
 	private function setArgsTaxQuery($args, $arrTaxQuery){
-
-		if(empty($arrTaxQuery))
+		
+		if(empty($arrTaxQuery) && self::$isModeReplace == false)
 			return($args);
 
 		$existingTaxQuery = UniteFunctionsUC::getVal($args, "tax_query");
-
+				
 		//if replace terms mode - just delete the existing tax query
 		if(self::$isModeReplace == true){
+			
+			if(empty($arrTaxQuery)){
+				
+				$args["tax_query"] = array();
+				return($args);
+				
+			}
+			
 			$existingTaxQuery = $this->keepNotInTaxQuery($existingTaxQuery);
 		}
-
+		
 		if(empty($existingTaxQuery)){
 
 			$args["tax_query"] = $arrTaxQuery;
@@ -893,16 +906,18 @@ class UniteCreatorFiltersProcess{
 	 * process request filters
 	 */
 	public function processRequestFilters($args, $isFilterable, $isMainQuery = false){
+		
+		$this->setShowDebug();
 				
 		//allow all ajax, forbid under request and not filterable.
-
+		
 		if($isFilterable == false)
 			return($args);
 
 		$arrFilters = $this->getRequestFilters();
 		
 		$arrMetaQuery = array();
-
+	
 		//---- set offset and count ----
 
 		$page = UniteFunctionsUC::getVal($arrFilters, "page");
@@ -929,9 +944,22 @@ class UniteCreatorFiltersProcess{
 
 		//search
 		if(!empty($search) && $search != "_all_"){
+			
 			$args["s"] = $search;
+						
+			if(!empty(self::$searchElementID)){
+				
+				$searchWidgetData = $this->getSettingsValuesFromElement(self::$arrContent, self::$searchElementID);
+				
+				GlobalsProviderUC::$isUnderAjaxSearch = true;
+				
+				$objAjaxSearch = new UniteCreatorAjaxSeach();
+				$objAjaxSearch->initCustomAjaxSeach($searchWidgetData);
+								
+			}
+			
 		}
-
+		
 		//orderby
 		if(!empty($orderby) && $orderby != "default"){
 
@@ -976,14 +1004,13 @@ class UniteCreatorFiltersProcess{
 		$arrTerms = UniteFunctionsUC::getVal($arrFilters, "terms");
 		
 		//if mode init - the filters should be set by "all" the posts set, not by the selected ones.
-		
-		if(!empty($arrTerms) && self::$isModeInit == false){	
-			
+				
+		if(self::$isModeInit == false){	
+						
 			//combine the tax queries
 			$arrTaxQuery = $this->getTaxQuery($arrTerms);
 			
-			if(!empty($arrTaxQuery))
-				$args = $this->setArgsTaxQuery($args, $arrTaxQuery);
+			$args = $this->setArgsTaxQuery($args, $arrTaxQuery);
 			
 		}
 
@@ -1055,8 +1082,8 @@ class UniteCreatorFiltersProcess{
 			$this->titleStart = $titleStart;
 			
 			add_filter( 'posts_where', array($this,'setWhereTitleStart'), 10, 2 );
-			
 		}
+		
 		
 		//set the title start
 		
@@ -1183,14 +1210,13 @@ class UniteCreatorFiltersProcess{
 		
 		$prefix = UniteProviderFunctionsUC::$tablePrefix;
 		
-		
 		$sql = "
-		SELECT DISTINCT UPPER(LEFT(post_title, 1)) AS first_letter
-		FROM {$prefix}posts AS p
-		JOIN (
-		    $request
-		) AS req ON p.id = req.id
-		ORDER BY first_letter ASC;
+			SELECT DISTINCT UPPER(LEFT(post_title, 1)) AS first_letter
+			FROM {$prefix}posts AS p
+			JOIN (
+			    $request
+			) AS req ON p.id = req.id
+			ORDER BY first_letter ASC;
 		";	
 
 		$db = HelperUC::getDB();
@@ -1222,7 +1248,49 @@ class UniteCreatorFiltersProcess{
 	
 	return($arrPostLetters);
 }
+
+	/**
+	 * return priceRangeMaxValue from Grid
+	 */
+	public function syncPriceRangeMaxValueWithGrid(){
+		
+		if(self::$isUnderAjax == false)
+			return(array());
+		
+		$request = $this->getLastGridRequest();
+		
+		$prefix = UniteProviderFunctionsUC::$tablePrefix;
+		
+		$request = $this->modifySyncPostsRequest($request);
+		
+		$sql = "SELECT MIN(CAST(wp_postmeta.meta_value AS SIGNED)) AS min_price, 
+				MAX(CAST(wp_postmeta.meta_value AS SIGNED)) AS max_price
+		FROM {$prefix}posts AS p
+		JOIN (
+			{$request}
+		) AS req ON p.ID = req.ID
+		JOIN wp_postmeta ON (p.ID = wp_postmeta.post_id)
+		WHERE wp_postmeta.meta_key = '_price'";		
+		
+
+		$db = HelperUC::getDB();
+		try{
 	
+			$response = @$db->fetchSql($sql);
+			
+		}catch(Exception $e){
+			//leave it empty
+		}
+
+	if(empty($response))
+		return(array());
+
+		$firstItem = $response[0];
+		
+		return($firstItem);
+	}
+
+
 	private function _______AJAX__________(){}
 		
 	/**
@@ -1257,13 +1325,12 @@ class UniteCreatorFiltersProcess{
 		$postListName = UniteFunctionsUC::getVal($paramPostList, "name");
 
 		//check for ajax search
-		$options = $addon->getOptions();
-		$special = UniteFunctionsUC::getVal($options, "special");
+		$isAjaxSearch = $addon->isAjaxSearch();
 		
-		if($special === "ajax_search")
+		if($isAjaxSearch == true)
 			return($postListName);
-
-
+		
+		
 		$isAjaxReady = UniteFunctionsUC::getVal($arrSettingsValues, $postListName."_isajax");
 		$isAjaxReady = UniteFunctionsUC::strToBool($isAjaxReady);
 
@@ -1307,7 +1374,76 @@ class UniteCreatorFiltersProcess{
 
 		return($arrSettingsValues);
 	}
+	
+	/**
+	 * get settings values from some element
+	 */
+	private function getSettingsValuesFromElement($arrContent, $elementID){
+		
+		if(self::$isGutenberg == false)
+			$arrElement = HelperProviderCoreUC_EL::getArrElementFromContent($arrContent, $elementID);
+		else
+			$arrElement = self::$objGutenberg->getBlockByRootId($arrContent, $elementID);
+		
+		if(empty($arrElement)){
 
+			UniteFunctionsUC::throwError(self::$platform." Widget with id: $elementID not found");
+		}
+
+
+		//Elementor Validations
+
+		if(self::$isGutenberg == false){
+
+			$type = UniteFunctionsUC::getVal($arrElement, "elType");
+
+			if($type != "widget")
+				UniteFunctionsUC::throwError("The element is not a widget");
+
+			$widgetType = UniteFunctionsUC::getVal($arrElement, "widgetType");
+
+			if(strpos($widgetType, "ucaddon_") === false){
+		
+				if($widgetType == "global")
+					UniteFunctionsUC::throwError("Ajax filtering doesn't work with global widgets. Please change the grid to regular widget.");
+
+				UniteFunctionsUC::throwError("Cannot output widget content for widget: $widgetType");
+			}
+						
+		}
+		
+		//get settings values
+
+		if(self::$isGutenberg == false)
+			$arrSettingsValues = UniteFunctionsUC::getVal($arrElement, "settings");
+		else
+			$arrSettingsValues = self::$objGutenberg->getSettingsFromBlock($arrElement);
+		
+		
+		//init addon
+
+		$addon = new UniteCreatorAddon();
+
+		if(self::$isGutenberg == false){		//init in elementor
+
+			$widgetName = str_replace("ucaddon_", "", $widgetType);
+			$addon->initByAlias($widgetName, GlobalsUC::ADDON_TYPE_ELEMENTOR);
+
+		}else{		//init in gutenberg
+
+			$blockName = UniteFunctionsUC::getVal($arrElement, "blockName");
+			$addon->initByBlockName($blockName, GlobalsUC::ADDON_TYPE_ELEMENTOR);
+		}
+		
+		//make a check that ajax option is on in this widget
+		
+		$addon->setParamsValues($arrSettingsValues);
+					
+		$arrParamsValues = $addon->getParamsValues();
+
+		
+		return($arrParamsValues);
+	}
 
 	/**
 	 * get content element html
@@ -1352,6 +1488,7 @@ class UniteCreatorFiltersProcess{
 			$arrSettingsValues = UniteFunctionsUC::getVal($arrElement, "settings");
 		else
 			$arrSettingsValues = self::$objGutenberg->getSettingsFromBlock($arrElement);
+
 		
 		//init addon
 
@@ -1379,13 +1516,15 @@ class UniteCreatorFiltersProcess{
 		}
 
 		$addon->setParamsValues($arrSettingsValues);
-
-
+		
 		//init the ajax search object to modify the post search list, if available
 		if(GlobalsProviderUC::$isUnderAjaxSearch){
-
+			
+			$arrParamValues = $addon->getParamsValues();
+			
 			$objAjaxSearch = new UniteCreatorAjaxSeach();
-			$objAjaxSearch->initCustomAjaxSeach($addon);
+			$objAjaxSearch->initCustomAjaxSeach($arrParamValues);
+			
 		}
 
 		GlobalsUnlimitedElements::$currentRenderingAddon = $addon;
@@ -1445,8 +1584,7 @@ class UniteCreatorFiltersProcess{
 			
 			$htmlDebug = $objOutput->getHtmlDebug();
 			
-			
-			echo $htmlDebug;
+			s_echo($htmlDebug);
 			dmp("End Here");
 			exit();
 		}
@@ -1622,10 +1760,16 @@ class UniteCreatorFiltersProcess{
 		
 		$layoutID = UniteFunctionsUC::getPostGetVariable("layoutid","",UniteFunctionsUC::SANITIZE_KEY);
 		$elementID = UniteFunctionsUC::getPostGetVariable("elid","",UniteFunctionsUC::SANITIZE_KEY);
-
+		
 		$addElIDs = UniteFunctionsUC::getPostGetVariable("addelids","",UniteFunctionsUC::SANITIZE_TEXT_FIELD);
 		$syncIDs = UniteFunctionsUC::getPostGetVariable("syncelids","",UniteFunctionsUC::SANITIZE_TEXT_FIELD);	 //additional grids
-
+		
+		//set search element id
+		$searchElementID = UniteFunctionsUC::getPostGetVariable("ucsid","",UniteFunctionsUC::SANITIZE_TEXT_FIELD);
+		
+		if(!empty($searchElementID))
+			self::$searchElementID = $searchElementID;
+		
 		$isModeFiltersInit = UniteFunctionsUC::getPostGetVariable("modeinit","",UniteFunctionsUC::SANITIZE_TEXT_FIELD);
 		$isModeFiltersInit = UniteFunctionsUC::strToBool($isModeFiltersInit);
 		
@@ -1641,9 +1785,6 @@ class UniteCreatorFiltersProcess{
 		GlobalsProviderUC::$isUnderAjax = true;
 		
 		self::$isModeReplace = $isModeReplace;
-
-		//if($isModeFiltersInit == true)
-			//GlobalsProviderUC::$skipRunPostQueryOnce = true;
 		
 		if(self::$isGutenberg == false)
 			
@@ -1661,7 +1802,10 @@ class UniteCreatorFiltersProcess{
 
 		if(empty($arrContent))
 			UniteFunctionsUC::throwError(self::$platform." content not found");
-
+		
+		self::$arrContent = $arrContent;	//save content
+		
+		
 		//run the post query
 		
 		$arrHtmlWidget = $this->getContentWidgetHtml($arrContent, $elementID);
@@ -1836,7 +1980,7 @@ class UniteCreatorFiltersProcess{
 	 * ajax search
 	 */
 	private function putAjaxSearchData(){
-
+		
 		self::$isUnderAjaxSearch = true;
 
 		$responseCode = http_response_code();
@@ -1860,7 +2004,6 @@ class UniteCreatorFiltersProcess{
 		//for outside filters - check that under ajax
 
 		$arrHtmlWidget = $this->getContentWidgetHtml($arrContent, $elementID);
-
 
 		GlobalsProviderUC::$isUnderAjaxSearch = false;
 
@@ -2207,7 +2350,10 @@ class UniteCreatorFiltersProcess{
 	 * modify selected by request
 	 */
 	private function modifyOutputTerms_modifySelectedByRequest($arrTerms){
-
+		
+		if(empty($arrTerms))
+			return($arrTerms);
+		
 		$this->hasSelectedByRequest = false;
 
 		$selectedTerms = null;
@@ -2419,16 +2565,19 @@ class UniteCreatorFiltersProcess{
 	 * modify the terms for init after
 	 */
 	private function modifyOutputTerms_setNumPosts($arrTerms){
-
+		
+		if(empty($arrTerms))
+			return($arrTerms);
+		
 		if(GlobalsProviderUC::$arrTestTermIDs === null)
 			return($arrTerms);
 
 		$arrParentNumPosts = array();
 
 		$arrPostNums = GlobalsProviderUC::$arrTestTermIDs;
-
+				
 		foreach($arrTerms as $key => $term){
-
+			
 			$termID = UniteFunctionsUC::getVal($term, "id");
 
 			$termFound = array_key_exists($termID, $arrPostNums);
@@ -2512,7 +2661,7 @@ class UniteCreatorFiltersProcess{
 	 * set selected class by options
 	 */
 	private function modifyOutputTerms_setSelectedClass($arrTerms, $filterType){
-
+		
 		if(empty($arrTerms))
 			return($arrTerms);
 
@@ -2627,7 +2776,10 @@ class UniteCreatorFiltersProcess{
 	 * get data attributes
 	 */
 	private function modifyOutputTerms_getDataAttributes($arrTerms, $filterType){
-
+		
+		if(empty($arrTerms))
+			return($arrTerms);
+		
 		foreach($arrTerms as $index => $term){
 
 			$termID = UniteFunctionsUC::getVal($term, "id");
@@ -2657,21 +2809,43 @@ class UniteCreatorFiltersProcess{
 		return($arrTerms);
 	}
 
+	/**
+	 * get filter attributes for search filter
+	 */
+	private function addEditorFilterArguments_search($data){
+		
+		//pass advanced search or nothing
+		
+		$hasSpecialArgs = UniteCreatorAjaxSeach::isSearchFilterHasSpecialArgs($data);
+				
+		if($hasSpecialArgs == true)
+			$data["filter_attributes"] = "data-advancedsearch='true' ";
+		else
+			$data["filter_attributes"] = "";
+		
+		return($data);		
+	}
 
 
 	/**
 	 * get editor filter arguments
 	 */
 	public function addEditorFilterArguments($data, $typeArg){
-
+		
 		$filterType = self::TYPE_TABS;
-
+		
 		switch($typeArg){
 			case "type_select":
 				$filterType = self::TYPE_SELECT;
 			break;
 			case "type_checkbox":
 				$filterType = self::TYPE_CHECKBOX;
+			break;
+			case "type_search":
+				
+				$data = $this->addEditorFilterArguments_search($data);
+				
+				return($data);								
 			break;
 		}
 
@@ -2687,7 +2861,7 @@ class UniteCreatorFiltersProcess{
 
 		$limitGrayedItems = UniteFunctionsUC::getVal($data, "load_limit_grayed");
 		$limitGrayedItems = (int)$limitGrayedItems;
-
+	
 		$filterRole = UniteFunctionsUC::getVal($data, "filter_role");
 		if($filterRole == "single")
 			$filterRole = "";
@@ -2728,13 +2902,11 @@ class UniteCreatorFiltersProcess{
 
 			if(!empty($termID))
 				$attributes .= " data-childterm=\"$termID\"";
-
 		}
 
 		if(!empty($connectGroup))
 			$attributes .= " data-connectgroup=\"$connectGroup\"";
-
-
+		
 		if($isInsideEditor == true)
 			$isFirstLoad = true;
 
@@ -2746,15 +2918,15 @@ class UniteCreatorFiltersProcess{
 		if($isReplaceTerms == true)
 			$attributes .= " data-replace-mode=\"true\"";
 
-
+		
 		//modify terms
 
 		$arrTerms = UniteFunctionsUC::getVal($data, "taxonomy");
-
+		
 		//modify the hidden as well
-
+			
 		$arrTerms = $this->modifyOutputTerms_setNumPosts($arrTerms, $isInitAfter, $isFirstLoad);
-
+	
 		//modify the selected class - add first
 		$arrTerms = $this->modifyOutputTerms_addFirstItem($arrTerms, $data, $filterType);
 
@@ -2785,7 +2957,7 @@ class UniteCreatorFiltersProcess{
 
 
 		$arrTerms = $this->modifyOutputTerms_setSelectedClass($arrTerms, $filterType);
-
+		
 		$arrTerms = $this->modifyOutputTerms_getDataAttributes($arrTerms, $filterType);
 		
 		//hide child filter at start
@@ -2802,14 +2974,14 @@ class UniteCreatorFiltersProcess{
 
 		if($isFilterHidden)
 			$addClass .= " uc-filter-hidden";
-
+		
 		$data["filter_isajax"] = $isUnderAjax?"yes":"no";
 		$data["filter_attributes"] = $attributes;
 		$data["filter_style"] = $style;
 		$data["filter_addclass"] = $addClass;
 		$data["filter_addclass_item"] = $addClassItem;
 		$data["filter_first_load"] = $isFirstLoad?"yes":"no";
-
+		
 		$data["taxonomy"] = $arrTerms;
 		
 
@@ -2879,27 +3051,27 @@ class UniteCreatorFiltersProcess{
 	 * set if show debug or not
 	 */
 	private function setShowDebug(){
-
+		
+		//already set
+		
+		if(self::$showDebug == true)
+			return(false);
+		
 		if(self::DEBUG_FILTER == true){
 			self::$showDebug = true;
 			return(false);
 		}
-
+		
 		//set debug only for logged in users
-
-		$isDebug = UniteFunctionsUC::getGetVar("ucfiltersdebug","",UniteFunctionsUC::SANITIZE_TEXT_FIELD);
-		$isDebug = UniteFunctionsUC::strToBool($isDebug);
+		
+		$isDebug = HelperUC::hasPermissionsFromQuery("ucfiltersdebug");
 
 		if($isDebug == true){
-
-			$hasPermissions = UniteFunctionsWPUC::isCurrentUserHasPermissions();
-
-			if($hasPermissions == true){
-				self::$showEchoDebug = true;
-				self::$showDebug = true;
-
-				dmp("SHOW DEBUG, logged in user");
-			}
+			
+			self::$showEchoDebug = true;
+			self::$showDebug = true;
+			
+			dmp("SHOW DEBUG, logged in user");
 
 		}
 
@@ -2940,11 +3112,11 @@ s	 */
 		$this->runSomeCrossPluginProtections();
 
 		$this->setShowDebug();
-
+		
 		$this->checkSetErrorsReporting();
 
 		self::$isUnderAjax = true;
-
+				
 		try{
 
 			switch($frontAjaxAction){
@@ -3005,7 +3177,7 @@ s	 */
 	 * init wordpress front filters
 	 */
 	public function initWPFrontFilters(){
-
+		
 		if(is_admin() == true)
 			return(false);
 

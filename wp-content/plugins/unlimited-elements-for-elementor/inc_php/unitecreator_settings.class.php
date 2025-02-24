@@ -455,6 +455,16 @@ class UniteCreatorSettingsWork extends UniteSettingsAdvancedUC{
 		$this->add($name, $value, $title, self::TYPE_TEXTSHADOW, $params);
 	}
 
+
+	/**
+	 * add text shadow setting
+	 */
+	public function addTextStrokeSetting($name, $value, $title, $params = array()){
+
+		$this->add($name, $value, $title, self::TYPE_TEXTSTROKE, $params);
+	}
+
+
 	/**
 	 * add box shadow setting
 	 */
@@ -817,11 +827,11 @@ class UniteCreatorSettingsWork extends UniteSettingsAdvancedUC{
             	
             	$fields = $objRss->getRssFields($name);
                 
-                UniteCreatorAPIIntegrations::getInstance()->addSettingsFields($this, $fields, $name, $condition);
+                HelperProviderUC::addSettingsFields($this, $fields, $name, $condition);
             break;
             case "repeater":
             	
-            	HelperProviderUC::addRepeaterSettings($this, $name,"",true);
+            	HelperProviderUC::addRepeaterSettings($this, $name,"",true, true);
             	
             break;
 			case "base_widget":	//operate base widget addon object
@@ -1455,6 +1465,9 @@ class UniteCreatorSettingsWork extends UniteSettingsAdvancedUC{
 			case UniteCreatorDialogParam::PARAM_TEXTSHADOW:
 				$this->addTextShadowSetting($name, $value, $title, $extra);
 			break;
+			case UniteCreatorDialogParam::PARAM_TEXTSTROKE:
+				$this->addTextStrokeSetting($name, $value, $title, $extra);
+				break;
 			case UniteCreatorDialogParam::PARAM_BOXSHADOW:
 				$this->addBoxShadowSetting($name, $value, $title, $extra);
 			break;

@@ -251,7 +251,7 @@ class UniteCreatorForm{
 
 		try{
 			$debugMessages[] = "Form has been received.";
-
+	
 			// Validate form settings
 			$formErrors = $this->validateFormSettings($this->formSettings);
 
@@ -277,6 +277,7 @@ class UniteCreatorForm{
 			$fieldsErrors = $this->validateFormFields($this->formFields);
 
 			if(empty($fieldsErrors) === false){
+				
 				$errors = array_merge($errors, $fieldsErrors);
 
 				$validationError = $this->getValidationErrorMessage($fieldsErrors);
@@ -501,7 +502,7 @@ class UniteCreatorForm{
 
 								if($fieldValue !== "" && $validEmail === false)
 									// translators: %s is field name
-									$errors[] = sprintf(esc_html__("%s field has an invalid email address: $fieldValue .", "unlimited-elements-for-elementor"), $errorTitle);
+									$errors[] = sprintf(esc_html__("%s field has an invalid email address:", "unlimited-elements-for-elementor"), $errorTitle) . ' ' . $fieldValue . '.';
 							break;
 
 							case "email_recipients":
@@ -511,8 +512,8 @@ class UniteCreatorForm{
 									$validEmail = $this->isEmailValid($email);
 
 									if($validEmail === false)
-										// translators: %s is field name
-										$errors[] = sprintf(esc_html__("%s field has an invalid email address: %s.", "unlimited-elements-for-elementor"), $errorTitle, $email);
+										// translators: %1$s is field name, %2$s is field value
+										$errors[] = sprintf(esc_html__("%1\$s field has an invalid email address: %2\$s.", "unlimited-elements-for-elementor"), $errorTitle, $email);
 								}
 							break;
 
@@ -826,9 +827,9 @@ class UniteCreatorForm{
 
 		// Create upload folder
 		$folderName = self::FOLDER_NAME . "/"
-			. date("Y") . "/"
-			. date("m") . "/"
-			. date("d") . "/";
+			. s_date("Y") . "/"
+			. s_date("m") . "/"
+			. s_date("d") . "/";
 
 		$folderPath = GlobalsUC::$path_images . $folderName;
 
@@ -850,7 +851,13 @@ class UniteCreatorForm{
 				$fileName = wp_unique_filename($folderPath, $file["name"]);
 				$filePath = $folderPath . "/" . $fileName;
 
-				$moved = move_uploaded_file($file["tmp_name"], $filePath);
+				$moved = false;
+				$uploaded_file = wp_handle_upload( $file );
+				if ( isset( $uploaded_file['file'] ) ) {
+					UniteFunctionsUC::move( $uploaded_file['file'], $filePath, true );
+					$moved = true;
+				}
+				// $moved = move_uploaded_file($file["tmp_name"], $filePath);
 
 				if($moved === false){
 					$errors[] = "Unable to move uploaded file: $filePath";
@@ -858,7 +865,7 @@ class UniteCreatorForm{
 					continue;
 				}
 
-				$chmoded = chmod($filePath, 0644);
+				$chmoded = UniteFunctionsUC::chmod($filePath, 0644);
 
 				if($chmoded === false){
 					$errors[] = "Unable to change file permissions: $filePath";
@@ -874,26 +881,31 @@ class UniteCreatorForm{
 
 		return $errors;
 	}
-	
-	
+
 	/**
 	 * send email
 	 */
 	private function sendEmail($emailFields){
+				
+		try {
+			
+			$isSent = @wp_mail(
+				$emailFields["to"],
+				$emailFields["subject"],
+				$emailFields["message"],
+				$emailFields["headers"],
+				$emailFields["attachments"]
+			);
 
-		$isSent = wp_mail(
-			$emailFields["to"],
-			$emailFields["subject"],
-			$emailFields["message"],
-			$emailFields["headers"],
-			$emailFields["attachments"]
-		);
-
-		if($isSent === false){
-			$emails = implode(", ", $emailFields["to"]);
-
-			UniteFunctionsUC::throwError("Unable to send email to $emails.");
-		}
+			if($isSent === false){
+				$emails = implode(", ", $emailFields["to"]);
+	
+				UniteFunctionsUC::throwError("Unable to send email to $emails.");
+			}
+		
+		} catch (Exception $e) {
+    		UniteFunctionsUC::throwError($e->getMessage());
+		}		
 	}
 
 
@@ -976,6 +988,8 @@ class UniteCreatorForm{
 		$emailMessage = $this->replacePlaceholders($emailMessage, $emailPlaceholders, $emailReplaces);
 		$emailMessage = preg_replace("/(\r\n|\r|\n)/", "<br />", $emailMessage); // nl2br
 		
+		//clear placeholders that left
+		$emailMessage = $this->clearPlaceholders($emailMessage);
 		
 		return $emailMessage;
 	}
@@ -1189,6 +1203,7 @@ class UniteCreatorForm{
 			"headers" => $headers,
 			"values" => $values,
 		);
+
 
 		return $spreadsheetFields;
 	}
@@ -1456,7 +1471,15 @@ class UniteCreatorForm{
 		
 		
 	}
-
+	
+	/**
+	 * clear placeholders - content within curly braces
+	 */
+	private function clearPlaceholders($str) {
+		
+	    return preg_replace('/\{[^}]*\}/', '', $str);
+	}
+	
 	/**
 	 * get email fields
 	 */
@@ -1506,7 +1529,7 @@ class UniteCreatorForm{
 			"headers" => array(),
 			"attachments" => array(),
 		);
-
+		
 		$emailFields = $this->applyActionFieldsFilter($action, $emailFields);
 
 		$emailFields["headers"] = array_merge($this->prepareEmailHeaders($emailFields), $emailFields["headers"]);
